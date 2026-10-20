@@ -6,5 +6,5 @@ build-backend = "setuptools.build_meta"
 name = "unequaltime"
 version = "0.1.0"
 description = "Unequal-time angular power spectra Z_ell(omega, omega') of galaxy catalogues"
-requires-python = ">=3.9"
-dependencies = ["numpy", "scipy", "healpy", "pymaster"]
+requires-python = ">=3.10"
+dependencies = ["numpy>=2", "scipy", "healpy", "pymaster>=2"]
