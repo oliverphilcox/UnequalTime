@@ -7,6 +7,7 @@ name = "unequaltime"
 version = "0.1.0"
 description = "Unequal-time angular power spectra Z_ell(omega, omega') of galaxy catalogues: estimator, linear theory and covariance"
 readme = "README.md"
+license = {text = "MIT"}
 authors = [{name = "Oliver Philcox", email = "ophilcox@stanford.edu"}]
 requires-python = ">=3.10"
 dependencies = ["numpy>=2", "scipy", "healpy", "pymaster>=2"]

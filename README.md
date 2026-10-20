@@ -196,3 +196,7 @@ Each function is documented in its docstring, e.g. `help(ut.measure)`.
 - NaMaster: Alonso, Sanchez & Slosar (2019), [arXiv:1809.09603](https://arxiv.org/abs/1809.09603).
 - Pseudo-$C_\ell$ covariance (improved narrow-kernel approximation): García-García, Alonso & Bellini (2019), [arXiv:1906.11765](https://arxiv.org/abs/1906.11765).
 - Non-uniform FFT (exponential-of-semicircle kernel): Barnett, Magland & af Klinteberg (2019), [arXiv:1808.06736](https://arxiv.org/abs/1808.06736).
+
+## License
+
+MIT; see [LICENSE](LICENSE).
