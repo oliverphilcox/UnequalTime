@@ -9,11 +9,11 @@ trap = lambda x: np.r_[0.5, np.ones(len(x) - 2), 0.5] * (x[1] - x[0])
 
 def spectra(cosmo, b, nz, zbins, nw, lmax, ells=None, kmax=0.2, nk=1500, dchi=0.2):
     """G = <a_i a_j*>, Gt = <a_i a_j> (nbin, nw, nbin, nw, lmax + 1), i = (z-bin, omega_m): linear, non-Limber, Kaiser RSD,
-    computed at `ells` and interpolated (zero above max(ells)), k < kmax. cosmo: arrays z, chi, D, f (D(0) = 1), k, pk (linear,
-    z = 0, k in units of 1/chi); b(z): linear bias; nz(z): mean density n_g = nz(z) Omega(n) per unit z and steradian."""
+    computed at `ells` and interpolated (zero above max(ells)), k < kmax, radial step dchi. cosmo: arrays z, chi, D, f (D(0) = 1),
+    k, pk (linear, z = 0; k in 1/chi units); b(z): linear bias; nz(z): mean density n_g = nz(z) Omega(n) per unit z and sr."""
     k = np.linspace(1e-4, kmax, nk)
     wk = np.sqrt(2 / np.pi * k**2 * np.exp(np.interp(np.log(k), np.log(cosmo['k']), np.log(cosmo['pk']))) * trap(k))[:, None]
-    c = lambda z, x: np.interp(z, cosmo['z'], cosmo[x])
+    c = lambda z, q: np.interp(z, cosmo['z'], cosmo[q])
     ker = []
     for z0, z1 in zip(zbins[:-1], zbins[1:]):
         z = np.linspace(z0, z1, int((c(z1, 'chi') - c(z0, 'chi')) / dchi) + 2)
