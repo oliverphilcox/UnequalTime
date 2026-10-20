@@ -1,12 +1,13 @@
 import numpy as np
 import unequaltime as ut
+from unequaltime.estimator import nufft
 
 
 def test_nufft():
     rng = np.random.default_rng(0)
     t, p = rng.uniform(0, 1, 1000), rng.integers(0, 2, 1000)
     exact = [[np.exp(-1j * np.pi * m * t[p == q]).sum() for m in range(9)] for q in range(2)]
-    assert np.abs(ut.nufft(p, t, 9, 1.) - exact).max() < 1e-5 * len(t)
+    assert np.abs(nufft(p, t, 9, 1.) - exact).max() < 1e-5 * len(t)
 
 
 def test_bin_omega():
