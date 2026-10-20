@@ -12,8 +12,9 @@ def test_nufft():
 
 def test_bin_omega():
     Z = np.random.default_rng(1).normal(size=(1, 5, 5, 3)) + 0j
-    X, rows = ut.bin_omega(Z, Z, width=1)
-    assert X.shape == (1, len(rows), 3) and np.allclose(X[0, 0], Z[0, 0, 0].real)
+    X = ut.bin_omega(Z, Z, pairs=True)
+    assert X.shape == (1, len(ut.rows(5)), 3) and np.allclose(X[0, 0], Z[0, 0, 0].real)
+    assert np.allclose(ut.bin_omega(Z, Z, width=2), ut.bands(5, 2) @ np.einsum('bjjl->bjl', Z).real)
 
 
 def test_ric_full_sky():
