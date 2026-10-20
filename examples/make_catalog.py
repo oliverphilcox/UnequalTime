@@ -1,12 +1,12 @@
-"""Generate the demo catalogue: Poisson galaxies in a Gaussian, linear, redshift-space (Kaiser) density field on the sphere.
+"""Generate the demo catalog: Poisson galaxies in a Gaussian, linear, redshift-space (Kaiser) density field on the sphere.
 
 The density on fine redshift shells is drawn in harmonic space from the same linear theory as unequaltime.spectra,
     delta_lm(z) = sum_k sqrt(w_k) [b D j_l(k chi) - f D j_l''(k chi)] g_klm,   w_k = (2/pi) k^2 P(k) dk,   g_klm unit Gaussian,
-so that the catalogue has exactly the spectra predicted by unequaltime (with the same k grid). The amplitude is low enough
-(k < 0.05 h/Mpc) that a realisation with 1 + delta > 0 everywhere exists: the first such seed is used (seed 0 for the shipped
+so that the catalog has exactly the spectra predicted by unequaltime (with the same k grid). The amplitude is low enough
+(k < 0.05 h/Mpc) that a realization with 1 + delta > 0 everywhere exists: the first such seed is used (seed 0 for the shipped
 data), so the galaxies are an exact Poisson sample of nbar(z) Omega(n) (1 + delta), without clipping.
 
-Run from this directory: python make_catalogue.py  (writes data/catalogue.npz; a few minutes).
+Run from this directory: python make_catalog.py  (writes data/catalog.npz; a few minutes).
 """
 import numpy as np
 import healpy as hp
@@ -22,7 +22,7 @@ mask = hp.read_map('data/mask.fits')
 nside = hp.npix2nside(len(mask))
 lmax = 3 * nside - 1
 at = lambda z, key: np.interp(z, cosmo['z'], cosmo[key])
-zs = np.arange(ZMIN + DZ / 2, ZMAX, DZ)                     # shell centres
+zs = np.arange(ZMIN + DZ / 2, ZMAX, DZ)                     # shell centers
 k = np.linspace(1e-4, KMAX, NK)
 pk = np.exp(np.interp(np.log(k), np.log(cosmo['k']), np.log(cosmo['pk'])))
 wk = 2 / np.pi * k**2 * pk * np.r_[0.5, np.ones(NK - 2), 0.5] * (k[1] - k[0])    # trapezoid rule, as unequaltime.spectra
@@ -54,7 +54,7 @@ for seed in range(100):
     if dmin > -1:
         break
 else:
-    raise RuntimeError('no realisation with 1 + delta > 0 everywhere; lower the clustering amplitude')
+    raise RuntimeError('no realization with 1 + delta > 0 everywhere; lower the clustering amplitude')
 
 # Poisson sample of nbar(z) Omega(n) (1 + delta) by thinning uniform points on the sphere in each shell
 dmax = delta.max()
@@ -65,6 +65,6 @@ ra, dec = rng.uniform(0, 360, len(shell)), np.degrees(np.arcsin(u))
 pix = hp.ang2pix(nside, ra, dec, lonlat=True)
 keep = rng.random(len(shell)) < mask[pix] * (1 + delta[shell, pix]) / (mask.max() * (1 + dmax))
 z = zs[shell] + rng.uniform(-DZ / 2, DZ / 2, len(shell))
-np.savez_compressed('data/catalogue.npz', ra=ra[keep].astype(np.float32), dec=dec[keep].astype(np.float32),
+np.savez_compressed('data/catalog.npz', ra=ra[keep].astype(np.float32), dec=dec[keep].astype(np.float32),
                     z=z[keep].astype(np.float32))
-print(f'{keep.sum()} galaxies written to data/catalogue.npz')
+print(f'{keep.sum()} galaxies written to data/catalog.npz')

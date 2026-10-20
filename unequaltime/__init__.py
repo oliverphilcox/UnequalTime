@@ -1,4 +1,4 @@
-"""UnequalTime: unequal-time angular power spectra Z_ell(omega, omega') of galaxy catalogues (estimator, theory, covariance)."""
+"""UnequalTime: unequal-time angular power spectra Z_ell(omega, omega') of galaxy catalogs (estimator, theory, covariance)."""
 from .estimator import window, measure, bin_omega, bands, rows
 from .theory import spectra, mean, covariance
 

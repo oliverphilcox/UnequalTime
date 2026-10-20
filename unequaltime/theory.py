@@ -10,16 +10,15 @@ def trapz_weights(x):
     return np.r_[0.5, np.ones(len(x) - 2), 0.5] * (x[1] - x[0])
 
 
-def spectra(cosmo, b, nz, zbins, nomega, lmax, ells=None, kmax=0.2, nk=1500, dchi=0.2):
-    """Full-sky linear theory of the frequency maps: G = <a_i a_j^*> and Gt = <a_i a_j> for i = (redshift bin, omega_m).
+def spectra(cosmo, b, nz, zbins, nomega, lmax, w=None, ells=None, kmax=0.2, nk=1500, dchi=0.2):
+    """Unmasked linear theory Z_ell(omega, omega') and Z_ell(omega, -omega') of all frequency pairs, in all redshift bins.
 
-    Non-Limber, with the Kaiser redshift-space term:
+    Non-Limber, in the Kaiser approximation:
 
-        G_l(i, j) = (2/pi) int dk k^2 P(k) Delta_i(k) Delta_j(k)^*,
-        Delta_i(k) = int dz w_i(z) [b D j_l(k chi) - f D j_l''(k chi)],
+        Z_l(omega, omega') = (2/pi) int k^2 dk Delta_l(k, omega) Delta*_l(k, omega') P_L(k),
+        Delta_l(k, omega) = N^{-1/2} int dz exp(-i omega z) nbar(z) w(z) [b(z) j_l(k chi(z)) - f(z) j_l''(k chi(z))] D(z),
 
-    and Gt with Delta_j instead of Delta_j^*, where w_i(z) = nz(z) exp(-i omega_m (z - z0)) / sqrt(int dz nz^2) are the radial
-    weights of the estimator in redshift bin [z0, z1).
+    with N = int dz nbar^2 w^2 over the redshift bin (the unmasked normalization).
 
     Parameters
     ----------
@@ -29,13 +28,15 @@ def spectra(cosmo, b, nz, zbins, nomega, lmax, ells=None, kmax=0.2, nk=1500, dch
     b : callable
         Linear bias b(z).
     nz : callable
-        Mean density nz(z) per unit redshift and steradian (only its shape matters here).
+        Background density nbar(z) per unit redshift and steradian (only its shape matters here).
     zbins : (nbin + 1,) array
         Redshift bin edges.
     nomega : int
         Number of radial frequencies per bin.
     lmax : int
         Maximum multipole; use 3 nside - 1 of the mask for mean and covariance.
+    w : callable or None, optional
+        Radial weight w(z) (default 1), as in measure().
     ells : sorted int array, optional
         Multipoles at which the theory is computed (default: all); linearly interpolated in between, and zero outside
         [min(ells), max(ells)]. A subset such as np.r_[0:50, 50:lmax:4, lmax] is much faster.
@@ -49,21 +50,23 @@ def spectra(cosmo, b, nz, zbins, nomega, lmax, ells=None, kmax=0.2, nk=1500, dch
     Returns
     -------
     G, Gt : (nbin, nomega, nbin, nomega, lmax + 1) complex arrays
-        G[b, i, c, j, l] = <a_lm(b, omega_i) a_lm(c, omega_j)^*>, Gt[b, i, c, j, l] = <a_lm(b, omega_i) a_lm(c, -omega_j)^*>.
+        G[b, i, c, j, l] = <a_lm(omega_i) a*_lm(omega_j)> and Gt[b, i, c, j, l] = <a_lm(omega_i) a*_lm(-omega_j)>, with
+        a_lm(omega_i) in redshift bin b and a_lm(omega_j) in redshift bin c (i.e. Z_l(omega_i, +-omega_j) for b = c).
     """
     k = np.linspace(1e-4, kmax, nk)
     pk = np.exp(np.interp(np.log(k), np.log(cosmo['k']), np.log(cosmo['pk'])))
     k_weight = np.sqrt(2 / np.pi * k**2 * pk * trapz_weights(k))[:, None]                 # G = sum_k Delta_i Delta_j^* k_weight^2
+    weight = (lambda x: np.ones_like(x)) if w is None else w
 
     def at(z, key):
         return np.interp(z, cosmo['z'], cosmo[key])
     kernels = []                                                                         # per redshift bin
     for z0, z1 in zip(zbins[:-1], zbins[1:]):
         z = np.linspace(z0, z1, int((at(z1, 'chi') - at(z0, 'chi')) / dchi) + 2)
-        n = nz(z)
-        # radial weights dz nbar exp(-i omega (z - z0)) / sqrt(int dz nbar^2), as in the estimator
+        nw = nz(z) * weight(z)
+        # radial kernels dz exp(-i omega z) nbar w / N^{1/2}, as in the estimator
         dz = trapz_weights(z)
-        radial = np.exp(-1j * np.pi * np.outer(np.arange(nomega), z - z0) / (z1 - z0)) * dz * n / np.sqrt(dz @ n**2)
+        radial = np.exp(-1j * np.pi * np.outer(np.arange(nomega), z) / (z1 - z0)) * dz * nw / np.sqrt(dz @ nw**2)
         kernels.append((np.outer(k, at(z, 'chi')), b(z) * at(z, 'D'), at(z, 'f') * at(z, 'D'), radial))
     ells = np.arange(lmax + 1) if ells is None else np.asarray(ells)
     x = np.arange(0, kmax * at(zbins[-1], 'chi') + 2e-3, 1e-3)                             # tabulation grid of j_l(x), j_l''(x)
@@ -72,7 +75,7 @@ def spectra(cosmo, b, nz, zbins, nomega, lmax, ells=None, kmax=0.2, nk=1500, dch
         jl = [spherical_jn(max(n, 0), x) for n in (l - 2, l, l + 2)]
         d2jl = (l * (l - 1) * jl[0] / (2 * l - 1) - (l**2 / (2 * l - 1) + (l + 1)**2 / (2 * l + 3)) * jl[1]
                 + (l + 1) * (l + 2) * jl[2] / (2 * l + 3)) / (2 * l + 1)                  # j_l'' from the recurrence relations
-        # Delta_i(k) = int dz (radial weight) [b D j_l(k chi) - f D j_l''(k chi)]   (density + Kaiser term)
+        # Delta_l(k, omega) = int dz (radial kernel) [b j_l(k chi) - f j_l''(k chi)] D   (density + Kaiser term)
         delta = k_weight * np.concatenate([(bD * np.interp(kchi, x, jl[1]) - fD * np.interp(kchi, x, d2jl)) @ radial.T
                                            for kchi, bD, fD, radial in kernels], 1)
         G[..., il] = np.array([delta.T @ delta.conj(), delta.T @ delta]).reshape(G.shape[:-1])
@@ -101,7 +104,7 @@ def mean(G, Gt, win, width=1, pairs=False):
     return bin_omega(G[ibin, :, ibin] @ win['theory'].T, Gt[ibin, :, ibin] @ win['theory'].T, width, pairs)
 
 
-def covariance(G, Gt, nz, zbins, win, width=1, pairs=False):
+def covariance(G, Gt, nz, zbins, win, width=1, pairs=False, w=None):
     """Gaussian covariance of the measurement, including the correlations between redshift bins.
 
     Computed in the improved narrow-kernel approximation (Garcia-Garcia et al. 2019, arXiv:1906.11765), with the Poisson noise
@@ -113,12 +116,12 @@ def covariance(G, Gt, nz, zbins, win, width=1, pairs=False):
     G, Gt : (nbin, nomega, nbin, nomega, 3 nside) complex arrays
         Full-sky theory from spectra().
     nz : callable
-        Mean density nz(z) per unit redshift and steradian, n_g = nz(z) Omega(n) (sets the shot noise).
+        Background density nbar(z) per unit redshift and steradian, nbar_g = nbar(z) Omega(n) (sets the shot noise).
     zbins : (nbin + 1,) array
         Redshift bin edges.
     win : dict
         Mask operators from window().
-    width, pairs : optional
+    width, pairs, w : optional
         As in measure().
 
     Returns
@@ -132,17 +135,19 @@ def covariance(G, Gt, nz, zbins, win, width=1, pairs=False):
     nB = len(band)
     average = np.kron(np.eye(nbin), band)                        # band averaging over (redshift bin, omega)
 
-    # Poisson noise of <F_i F_j^*>, <F_i F_j> in the normalisation of G: <Omega> int dz nbar exp(-i (w_i -+ w_j)(z - z0)) / N
+    # Poisson noise Z^shot(omega, +-omega') in the normalization of G: <Omega> int dz exp(-i (omega -+ omega') z) nbar w^2 / N
+    weight = (lambda x: np.ones_like(x)) if w is None else w
     noise = np.zeros((2, nbin * nomega, nbin * nomega), complex)
     for ibin, (z0, z1) in enumerate(zip(zbins[:-1], zbins[1:])):
         z = np.linspace(z0, z1, 10001)
-        n = nz(z)
-        phase = np.exp(-1j * np.pi * np.outer(np.arange(nomega), z - z0) / (z1 - z0))
-        w = trapz_weights(z) * n * mask_mean / (mask2_mean * np.trapezoid(n**2, z))
+        n, wz = nz(z), weight(z)
+        phase = np.exp(-1j * np.pi * np.outer(np.arange(nomega), z) / (z1 - z0))
+        integrand = trapz_weights(z) * n * wz**2 * mask_mean / (mask2_mean * np.trapezoid((n * wz)**2, z))
         sl = slice(ibin * nomega, (ibin + 1) * nomega)
-        noise[:, sl, sl] = (phase * w) @ phase.conj().T, (phase * w) @ phase.T
+        noise[:, sl, sl] = (phase * integrand) @ phase.conj().T, (phase * integrand) @ phase.T
 
-    # Spectra of the signed bands a = (+-, bin, A), with F_{-A} = F_A^*: <F_a F_b^*> = [[G, Gt], [Gt^*, G^*]], shape (ell, a, b).
+    # Spectra of the signed bands a = (+-, bin, A), with a_lm(-omega) = (-1)^m a*_l-m(omega): <a a'^*> = [[G, Gt], [Gt^*, G^*]],
+    # shape (ell, a, a').
     # Coupled through the mask (signal) plus noise times its shape, and divided by <Omega^2> (iNKA).
     def signed(g, gt):
         return np.block([[g, gt], [gt.conj(), g.conj()]])
