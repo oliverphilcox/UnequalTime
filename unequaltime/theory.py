@@ -12,24 +12,22 @@ def spectra(cosmo, b, nz, zbins, nw, lmax, ells=None, kmax=0.2, nk=1500, dchi=0.
     computed at `ells` and interpolated (zero above max(ells)), k < kmax. cosmo: arrays z, chi, D, f (D(0) = 1), k, pk (linear,
     z = 0, k in units of 1/chi); b(z): linear bias; nz(z): mean density n_g = nz(z) Omega(n) per unit z and steradian."""
     k = np.linspace(1e-4, kmax, nk)
-    wk = 2 / np.pi * k**2 * np.exp(np.interp(np.log(k), np.log(cosmo['k']), np.log(cosmo['pk']))) * trap(k)
+    wk = np.sqrt(2 / np.pi * k**2 * np.exp(np.interp(np.log(k), np.log(cosmo['k']), np.log(cosmo['pk']))) * trap(k))[:, None]
     c = lambda z, x: np.interp(z, cosmo['z'], cosmo[x])
     ker = []
     for z0, z1 in zip(zbins[:-1], zbins[1:]):
         z = np.linspace(z0, z1, int((c(z1, 'chi') - c(z0, 'chi')) / dchi) + 2)
-        w = trap(z) * nz(z)
-        e = np.exp(-1j * np.pi * np.outer(np.arange(nw), z - z0) / (z1 - z0)) * w / np.sqrt(w @ nz(z))
+        n = nz(z)
+        e = np.exp(-1j * np.pi * np.outer(np.arange(nw), z - z0) / (z1 - z0)) * trap(z) * n / np.sqrt(trap(z) @ n**2)
         ker.append((np.outer(k, c(z, 'chi')), b(z) * c(z, 'D'), c(z, 'f') * c(z, 'D'), e))
     ells = np.arange(lmax + 1) if ells is None else ells
+    x = np.arange(0, kmax * c(zbins[-1], 'chi') + 2e-3, 1e-3)
     G = np.zeros((2, len(zbins) - 1, nw, len(zbins) - 1, nw, len(ells)), complex)
     for il, l in enumerate(ells):
-        d = []
-        for x, bD, fD, e in ker:
-            j = [spherical_jn(max(n, 0), x) for n in (l - 2, l, l + 2)]
-            ddj = (l * (l - 1) * j[0] / (2 * l - 1) - (l**2 / (2 * l - 1) + (l + 1)**2 / (2 * l + 3)) * j[1]
-                   + (l + 1) * (l + 2) * j[2] / (2 * l + 3)) / (2 * l + 1)
-            d.append((bD * j[1] - fD * ddj) @ e.T)
-        d = np.concatenate(d, 1) * np.sqrt(wk)[:, None]
+        j = [spherical_jn(max(n, 0), x) for n in (l - 2, l, l + 2)]
+        ddj = (l * (l - 1) * j[0] / (2 * l - 1) - (l**2 / (2 * l - 1) + (l + 1)**2 / (2 * l + 3)) * j[1]
+               + (l + 1) * (l + 2) * j[2] / (2 * l + 3)) / (2 * l + 1)
+        d = wk * np.concatenate([(bD * np.interp(kc, x, j[1]) - fD * np.interp(kc, x, ddj)) @ e.T for kc, bD, fD, e in ker], 1)
         G[..., il] = np.array([d.T @ d.conj(), d.T @ d]).reshape(G.shape[:-1])
     G = interp1d(ells, G, axis=-1, bounds_error=False, fill_value=0)(np.arange(lmax + 1))
     return G[0], G[1]
