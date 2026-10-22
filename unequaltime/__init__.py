@@ -1,6 +1,6 @@
-"""UnequalTime: unequal-time angular power spectra Z_ell(omega, omega') of galaxy catalogs (estimator, theory, covariance)."""
-from .estimator import window, measure, bin_omega, bands, rows
-from .theory import spectra, mean, covariance
+"""UnequalTime: the unequal time power spectrum Z_ell(omega, omega') of galaxy surveys (estimator, theory and covariance)."""
+from .survey import Survey
+from . import estimator, theory
 
 __version__ = '0.1.0'
-__all__ = ['window', 'measure', 'bin_omega', 'bands', 'rows', 'spectra', 'mean', 'covariance']
+__all__ = ['Survey', 'estimator', 'theory']
