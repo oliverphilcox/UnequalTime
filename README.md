@@ -2,9 +2,13 @@
 UnequalTime is a Python code that estimates the unequal time power spectrum, $\mathcal{Z}_\ell(\omega)$ or $\mathcal{Z}_\ell(\omega,\omega')$, for galaxy surveys. This is the radial Fourier transform of the unequal time correlation function $C_\ell(z,z')$ in $z-z'$, and is computed directly from a catalog of angular positions and redshifts, without a fiducial cosmology. The code also computes the linear theory model and the Gaussian covariance, and is built on [NaMaster](https://github.com/LSSTDESC/NaMaster) and [healpy](https://github.com/healpy/healpy).
 
 In each redshift bin, we form the frequency-space density field
+
 $$a_{\ell m}(\omega) = \frac{1}{\mathcal{N}^{1/2}}\int d\hat{\mathbf{n}}\,Y^*_{\ell m}(\hat{\mathbf{n}})\int dz\,e^{-i\omega z}[n_g(\hat{\mathbf{n}},z)-\bar n_g(\hat{\mathbf{n}},z)]w(z)$$
+
 where $n_g$ is the galaxy number density, $\bar n_g(\hat{\mathbf{n}},z) = \bar n(z)\Omega(\hat{\mathbf{n}})$ is the background density for angular mask $\Omega$, $w(z)$ is a radial weight, and $\mathcal{N}$ is a normalization. This is computed using a spherical harmonic transform in angular space and a non-uniform fast Fourier transform in radial space. The power spectrum estimator is
+
 $$\widehat{\mathcal{Z}}_{\ell}(\omega,\omega') = \frac{1}{2\ell+1}\sum_{m=-\ell}^{\ell}a_{\ell m}(\omega)a^*_{\ell m}(\omega') - \mathcal{Z}_\ell^{\rm shot}(\omega,\omega')$$
+
 with $\omega$ in multiples of the fundamental frequency $\pi/\Delta z$ for a redshift bin of width $\Delta z$. The main output is the diagonal spectrum, $\widehat{\mathcal{Z}}_\ell(\omega)\equiv\widehat{\mathcal{Z}}_\ell(\omega,\omega)$ (which typically dominates), but the off-diagonal spectra can also be computed. The code accounts for general angular masks, the pixel window function, and the radial integral constraint arising from estimating $\bar n(z)$ from the survey itself.
 
 UnequalTime contains the following modules:
